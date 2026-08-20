@@ -28,7 +28,7 @@ st.sidebar.info("💡 **Pro-tip:** This address and your friction matrix are syn
 # ==========================================
 # 主畫面：分頁切換（單人模式 vs. 多人匿名模式）
 # ==========================================
-tab_solo, tab_group = st.tabs(["👤 Solo Decision Hub (單人模式)", "👥 Secret Group Consensus (多人匿名模式)"])
+tab_solo, tab_group = st.tabs(["👤 Solo Decision Hub", "👥 Secret Group Consensus"])
 
 # ==========================================
 # Tab 1: 單人模式 (Solo Mode)
