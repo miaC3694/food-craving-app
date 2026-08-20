@@ -1,90 +1,109 @@
 import streamlit as st
 from google import genai
 
-st.set_page_config(page_title="Smart Eatery & Recipe Finder", page_icon="🍽️")
-st.title("What are we exploring today? 🍽️")
+st.set_page_config(page_title="Whar are you craving for today?", page_icon="🍽️")
+st.title("AI Food Discovery Assistant 🍽️")
 st.write("---")
 
-# 從 Streamlit Secrets 讀取 API Key
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
-# 1. 地點設定區（不限校園，全球通用）
-user_location = st.text_input("📍 Enter your location, city, or address:", value="Livingston, NJ")
+# 初始化 Session State（用來記住生成的 6 個選項）
+if "food_options" not in st.session_state:
+    st.session_state.food_options = []
 
-st.write("### ✨ Pick a craving vibe:")
+# 1. 輸入地點與大方向心情
+user_location = st.text_input("📍 Enter your location or city:", value="Livingston, NJ")
+broad_craving = st.text_input("💡 What's your general mood or craving? (e.g., cozy, late night, healthy, comforting):")
 
-# 2. 六個長方形網格按鈕區（3欄 x 2排）
-col1, col2, col3 = st.columns(3)
-selected_tag = None
-
-with col1:
-    if st.button("🍜 Warm Soup", use_container_width=True):
-        selected_tag = "warm and comforting soup"
-    if st.button("🍔 Burgers & Fries", use_container_width=True):
-        selected_tag = "juicy burgers and fries"
-
-with col2:
-    if st.button("🌮 Tacos & Mexican", use_container_width=True):
-        selected_tag = "tacos and Mexican food"
-    if st.button("🍰 Sweet Dessert", use_container_width=True):
-        selected_tag = "sweet treat and dessert"
-
-with col3:
-    if st.button("🥗 Fresh Bowls", use_container_width=True):
-        selected_tag = "fresh and healthy bowls"
-    if st.button("☕ Cozy Café", use_container_width=True):
-        selected_tag = "cozy coffee and pastry"
-
-st.write("---")
-
-# 3. 自由輸入區（支援 "I need a place" 或 "I need the food" 等情境關鍵字）
-user_input = st.text_input("💡 Or type freely (e.g., 'I need a place for a date night' or 'I need the food recipe for pad thai'):")
-
-# 判斷最終目標（優先採用文字輸入，否則採用按鈕點擊）
-target = user_input if user_input else selected_tag
-
-# 4. 呼叫 AI 進行智慧解析與推薦
-if target:
-    st.write("---")
-    st.success(f"Target near **{user_location}**: **{target}**")
-    
+# 2. 點擊按鈕讓 AI 生成 6 種食物
+if st.button("🎲 Generate 6 Food Options", use_container_width=True):
     if not api_key:
-        st.warning("⚠️ Please configure your `GEMINI_API_KEY` in Streamlit Secrets to activate the AI brain.")
+        st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
     else:
-        with st.spinner("AI Foodie is analyzing your request... 🍳"):
+        with st.spinner("Brainstorming 6 delicious ideas for you... 🍳"):
             try:
                 client = genai.Client(api_key=api_key)
-                
-                # 智慧 Prompt：讓 AI 自動判斷使用者是要找餐廳還是找食譜
                 prompt = (
-                    f"You are an intelligent food guide and local expert. "
-                    f"The user is located at: '{user_location}'. "
-                    f"Their request or selected vibe is: '{target}'. "
-                    f"Please analyze their intent: "
-                    f"- If they want a place ('I need a place'), recommend 1 specific real restaurant near '{user_location}' and their signature dish. "
-                    f"- If they want the food/recipe ('I need the food'), provide a quick, delicious recipe or preparation breakdown. "
-                    f"- If it's a category button, provide both a great local spot and a quick home alternative. "
-                    f"Keep the tone warm, modern, and concise."
+                    f"Based on the vibe '{broad_craving}' near '{user_location}', "
+                    f"generate exactly 6 specific and diverse food or dish names. "
+                    f"Return ONLY a valid Python list of 6 strings, for example: "
+                    f"['Spicy Tonkotsu Ramen', 'Margherita Pizza', 'Avocado Toast', 'Crispy Chicken Tacos', 'Matcha Latte & Pastry', 'Greek Salad Bowl']. "
+                    f"Do not include any numbering or extra text outside the list."
                 )
-                
                 response = client.models.generate_content(
                     model="gemini-3.6-flash",
                     contents=prompt,
                 )
-                ai_output = response.text
+                
+                # 清理並解析 AI 回傳的清單
+                text = response.text.strip()
+                if "```" in text:
+                    text = text.split("```")[1]
+                    if text.startswith("python"):
+                        text = text[6:]
+                text = text.strip()
+                
+                options = eval(text)
+                if isinstance(options, list) and len(options) > 0:
+                    st.session_state.food_options = options
+                else:
+                    st.session_state.food_options = ["Spicy Miso Ramen", "Truffle Cheeseburger", "Birria Tacos", "Classic Carbonara", "Salmon Poke Bowl", "Matcha Crepe Cake"]
             except Exception as e:
-                ai_output = f"Oops! Something went wrong connecting to the AI: {e}"
+                # 預設備用選項，避免報錯
+                st.session_state.food_options = [
+                    "Spicy Miso Ramen", 
+                    "Truffle Cheeseburger", 
+                    "Birria Tacos", 
+                    "Classic Carbonara", 
+                    "Salmon Poke Bowl", 
+                    "Matcha Crepe Cake"
+                ]
 
-        # 顯示 AI 回應
-        st.markdown(ai_output)
-        
-        # 5. 快速導航與食譜搜尋按鈕
-        st.write("---")
-        tab1, tab2 = st.tabs(["🍴 Search Places on Google Maps", "🍳 Search Recipes Online"])
-        with tab1:
-            st.link_button("Search Places Nearby", f"https://www.google.com/maps/search/{target}+near+{user_location}", use_container_width=True)
-        with tab2:
-            st.link_button("Search Recipes", f"https://www.google.com/search?q={target}+recipe", use_container_width=True)
+# 3. 如果已經有 6 個選項，展示出來讓使用者挑選
+if st.session_state.food_options:
+    st.write("---")
+    st.write("### 👇 Pick one of the 6 options generated for you:")
+    
+    # 讓使用者從 6 個選項中勾選或選擇一個
+    selected_food = st.selectbox("Choose your favorite:", st.session_state.food_options)
+    
+    # 讓使用者決定意圖：找餐廳 (I need a place) 還是找食譜 (I need the food)
+    choice_type = st.radio("What would you like to do next?", ["🍴 I need a place (Find a restaurant)", "🍳 I need the food (Get a recipe & cook at home)"])
+
+    if st.button("✨ Get Final Recommendation", use_container_width=True):
+        with st.spinner(f"Analyzing details for '{selected_food}'..."):
+            try:
+                client = genai.Client(api_key=api_key)
+                
+                if "I need a place" in choice_type:
+                    detail_prompt = (
+                        f"The user is at '{user_location}' and selected '{selected_food}'. "
+                        f"Recommend 1 specific, real restaurant or cafe near '{user_location}' that serves this. "
+                        f"Include the restaurant name, why it's great, and what makes their version special."
+                    )
+                else:
+                    detail_prompt = (
+                        f"The user selected '{selected_food}' and wants to make it at home. "
+                        f"Provide a quick, easy 3-step home recipe or preparation guide for '{selected_food}'."
+                    )
+                
+                res = client.models.generate_content(
+                    model="gemini-3.6-flash",
+                    contents=detail_prompt,
+                )
+                
+                st.write("---")
+                st.markdown("### 🎯 Your Custom Recommendation:")
+                st.markdown(res.text)
+                
+                # 4. 快速跳轉按鈕
+                st.write("---")
+                if "I need a place" in choice_type:
+                    st.link_button("Search Places on Google Maps", f"https://www.google.com/maps/search/{selected_food}+near+{user_location}", use_container_width=True)
+                else:
+                    st.link_button("Search Recipe Online", f"https://www.google.com/search?q={selected_food}+recipe", use_container_width=True)
+            except Exception as e:
+                st.error(f"Oops! Something went wrong: {e}")
 
 st.write("---")
-st.caption("A smart multi-intent food assistant, powered by Gemini 3.6 Flash")
+st.caption("A two-stage intelligent food discovery assistant, powered by Gemini 3.6 Flash")
