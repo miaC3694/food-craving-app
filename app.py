@@ -9,7 +9,7 @@ st.write("---")
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # 1. 自由輸入區
-user_input = st.text_input("💡 Got a specific food or keyword in mind? Type it here (e.g., korean, boba, ramen...):")
+user_input = st.text_input("💡 Got a specific food or mood in mind? (e.g., korean, i need something warm but not too spicy):")
 
 st.markdown("<p style='text-align: center; color: gray;'>— Or pick a vibe below —</p>", unsafe_allow_html=True)
 
@@ -32,7 +32,7 @@ with col2:
 # 判斷輸入來源
 target = user_input if user_input else selected_tag
 
-# 3. 呼叫 AI 生成推薦
+# 3. 呼叫 AI 生成精細推薦
 if target:
     st.write("---")
     st.success(f"Got it! You're looking for: **{target}**")
@@ -45,24 +45,20 @@ if target:
                 # 初始化 Gemini 客戶端
                 client = genai.Client(api_key=api_key)
                 
-                # 設計給 AI 的 Prompt，限制在 UW-Madison 校園周邊
-                prompt = f"""
-                # 更新後的 AI Prompt，更強調精細化的推薦
-                prompt = f"""
-                You are a local foodie guide for an undergraduate student at UW-Madison.
-                The student is looking for: '{target}'.
-                
-                Please provide:
-                1. One specific restaurant or cafe near the UW-Madison campus (State Street or nearby).
-                2. One specific dish name that perfectly matches their request (e.g., if they ask for 'warm but not too spicy', suggest something like Chicken Pho or Miso Ramen).
-                3. A short, friendly note explaining why this specific dish fits their current mood.
-                4. A simple 'Cook at Home' version or quick tip if they prefer to stay in.
-                
-                Keep the tone warm, modern, and empathetic to a student's budget and schedule.
-                """
+                # 精細化 Prompt 確保 AI 推薦特定餐廳與菜色
+                prompt = (
+                    f"You are a local foodie guide for an undergraduate student at UW-Madison. "
+                    f"The student is looking for: '{target}'. "
+                    f"Please provide: "
+                    f"1. One specific restaurant or cafe near the UW-Madison campus or State Street area. "
+                    f"2. One specific dish name that matches their exact request. "
+                    f"3. A short, friendly note explaining why this fits their mood. "
+                    f"4. A simple 'Cook at Home' version or quick tip. "
+                    f"Keep the tone warm, modern, and concise."
+                )
                 
                 response = client.models.generate_content(
-                    model="gemini-3.6-flash",
+                    model="gemini-2.0-flash",
                     contents=prompt,
                 )
                 ai_output = response.text
@@ -80,5 +76,5 @@ if target:
         with tab2:
             st.link_button("Search DIY Recipes", f"https://www.google.com/search?q={target}+quick+recipe+at+home", use_container_width=True)
 
-st.write("---")
+st.log = "---"
 st.caption("A smart decision-making assistant built for UW-Madison students, powered by Gemini")
