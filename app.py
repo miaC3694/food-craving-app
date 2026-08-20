@@ -1,29 +1,33 @@
 import streamlit as st
 from google import genai
 
-st.set_page_config(page_title="What do you crave for today?", page_icon="🍽️", layout="wide")
+st.set_page_config(page_title="Smart Dining & Decision Engine", page_icon="🍽️", layout="wide")
 
-st.title("🍽️ Smart Dining & Decision Engine")
-st.markdown("---")
+# 醒目的標題與開頭
+st.title("What do you crave for today? 🍽️")
+st.markdown("Your smart local foodie guide and decision engine.")
+st.write("---")
 
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # 初始化 Session State
-if "solo_food_options" not in st.session_state:
-    st.session_state.solo_food_options = []
 if "group_members" not in st.session_state:
     st.session_state.group_members = []
 
 # ==========================================
-# 側邊欄：全域通用設定（現在所有版本都能動態吃這裡的 Address）
+# 0. 網頁最上方：全域地址與摩擦力矩陣 (Global Settings & Filters)
 # ==========================================
-st.sidebar.header("⚙️ Global Settings & Filters")
-global_address = st.sidebar.text_input("📍 Your Current Address / Location", value="Livingston, NJ")
-global_budget = st.sidebar.slider("💰 Max Budget (USD)", 5, 50, 20)
-global_walk = st.sidebar.slider("🚶 Max Travel Time (mins)", 5, 30, 15)
+st.subheader("📍 Where are you located & what are your limits?")
+col_addr, col_bud, col_walk = st.columns([2, 1, 1])
 
-st.sidebar.markdown("---")
-st.sidebar.info("💡 **Pro-tip:** This address and your friction matrix are synchronized across all tabs!")
+with col_addr:
+    global_address = st.text_input("Your Address, City, or Location:", value="Livingston, NJ")
+with col_bud:
+    global_budget = st.slider("Max Budget ($)", 5, 50, 20)
+with col_walk:
+    global_walk = st.slider("Max Travel (mins)", 5, 30, 15)
+
+st.markdown("---")
 
 # ==========================================
 # 主畫面：分頁切換（單人模式 vs. 多人匿名模式）
@@ -171,7 +175,6 @@ with tab_group:
         my_secret_craving = st.text_input("What do you secretly want to eat?", key="grp_craving")
         my_max_spending = st.slider("Your Personal Budget Limit ($):", 5, 50, global_budget, key="grp_budget")
     with col_g2:
-        # 支援下拉選單加上自由輸入欄位
         diet_option = st.selectbox("Dietary Note / Restrictions:", ["None", "Vegetarian", "Vegan", "Gluten-Free", "Halal", "Dairy-Free", "Custom (Type below)"], key="grp_diet_select")
         if "Custom" in diet_option:
             my_dietary_restriction = st.text_input("Type your custom dietary note (e.g., nut allergy, no seafood):", key="grp_custom_diet")
