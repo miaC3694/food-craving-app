@@ -2,7 +2,7 @@ import streamlit as st
 from google import genai
 
 st.set_page_config(page_title="Whar are you craving for today?", page_icon="🍽️")
-st.title("AI Food Discovery Assistant 🍽️")
+st.title("What are you craving for today? 🍽️")
 st.write("---")
 
 api_key = st.secrets.get("GEMINI_API_KEY", "")
