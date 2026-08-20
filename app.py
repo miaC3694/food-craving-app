@@ -3,135 +3,182 @@ from google import genai
 
 st.set_page_config(page_title="Smart Dining & Decision Engine", page_icon="🍽️", layout="wide")
 
-st.title("🍽️ What do you crave for today?")
+st.title("🍽️ Smart Dining & Decision Engine")
 st.markdown("---")
 
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # 初始化 Session State
-if "food_options" not in st.session_state:
-    st.session_state.food_options = []
+if "solo_food_options" not in st.session_state:
+    st.session_state.solo_food_options = []
 if "group_members" not in st.session_state:
     st.session_state.group_members = []
 
 # ==========================================
-# 側邊欄：全域摩擦力矩陣 (The Friction Matrix)
+# 側邊欄：全域通用設定（現在所有版本都能動態吃這裡的 Address）
 # ==========================================
-st.sidebar.header("⚙️ Friction Matrix (Global Filters)")
-user_location = st.sidebar.text_input("📍 Your Location / City", value="Livingston, NJ")
-max_budget = st.sidebar.slider("💰 Max Budget (USD)", 5, 50, 20)
-max_walk = st.sidebar.slider("🚶 Max Travel Time (mins)", 5, 30, 15)
+st.sidebar.header("⚙️ Global Settings & Filters")
+global_address = st.sidebar.text_input("📍 Your Current Address / Location", value="Livingston, NJ")
+global_budget = st.sidebar.slider("💰 Max Budget (USD)", 5, 50, 20)
+global_walk = st.sidebar.slider("🚶 Max Travel Time (mins)", 5, 30, 15)
 
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **Pro-tip:** Set your budget and travel limits here to filter out unrealistic options instantly.")
+st.sidebar.info("💡 **Pro-tip:** This address and your friction matrix are synchronized across all tabs!")
 
 # ==========================================
 # 主畫面：分頁切換（單人模式 vs. 多人匿名模式）
 # ==========================================
-tab_solo, tab_group = st.tabs(["👤 Solo Decision Hub ", "👥 Secret Group Consensus "])
+tab_solo, tab_group = st.tabs(["👤 Solo Decision Hub (單人模式)", "👥 Secret Group Consensus (多人匿名模式)"])
 
 # ==========================================
 # Tab 1: 單人模式 (Solo Mode)
 # ==========================================
 with tab_solo:
     st.subheader("👤 Solo Food & Decision Hub")
-    st.markdown("Not sure what to eat? Let AI generate 6 tailored options based on your current vibe, then choose to go out or cook at home.")
+    st.markdown("Choose whether you want to go out to a restaurant or cook at home with tailored AI guidance.")
 
-    broad_craving = st.text_input("💡 What's your general mood or craving right now? (e.g., cozy, healthy, late-night comfort):", key="solo_input")
-    
-    if st.button("🎲 Generate 6 Custom Food Options", use_container_width=True, key="btn_solo"):
-        if not api_key:
-            st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
-        else:
-            with st.spinner("Brainstorming 6 options tailored to your constraints... 🍳"):
-                try:
-                    client = genai.Client(api_key=api_key)
-                    prompt = (
-                        f"Based on the vibe '{broad_craving}' near '{user_location}', "
-                        f"considering a max budget of ${max_budget} and max travel time of {max_walk} mins, "
-                        f"generate exactly 6 specific and diverse food or dish names. "
-                        f"Return ONLY a valid Python list of 6 strings, for example: "
-                        f"['Spicy Tonkotsu Ramen', 'Margherita Pizza', 'Avocado Toast', 'Crispy Chicken Tacos', 'Matcha Latte & Pastry', 'Greek Salad Bowl']. "
-                        f"Do not include any numbering or extra text outside the list."
-                    )
-                    response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
-                    
-                    text = response.text.strip()
-                    if "```" in text:
-                        text = text.split("```")[1]
-                        if text.startswith("python"):
-                            text = text[6:]
-                    text = text.strip()
-                    
-                    options = eval(text)
-                    if isinstance(options, list) and len(options) > 0:
-                        st.session_state.food_options = options
-                    else:
-                        st.session_state.food_options = ["Spicy Miso Ramen", "Truffle Cheeseburger", "Birria Tacos", "Classic Carbonara", "Salmon Poke Bowl", "Matcha Crepe Cake"]
-                except Exception as e:
-                    st.session_state.food_options = ["Spicy Miso Ramen", "Truffle Cheeseburger", "Birria Tacos", "Classic Carbonara", "Salmon Poke Bowl", "Matcha Crepe Cake"]
+    # 選擇要「出去吃」還是「在家煮」
+    solo_intent = st.radio("What's your plan?", ["🍴 I want to go out (Find Restaurants)", "🍳 I want to cook at home (Recipe & Shopping Optimizer)"], key="solo_intent_choice")
 
-    # 顯示 6 種選項並進行後續分流
-    if st.session_state.food_options:
-        st.markdown("---")
-        st.write("### 👇 Pick one of the 6 options generated for you:")
-        selected_food = st.selectbox("Choose your favorite:", st.session_state.food_options, key="solo_select")
+    st.markdown("---")
+
+    # ------------------------------------------
+    # 模式 A：單人出去吃 (Find 5 Restaurants)
+    # ------------------------------------------
+    if "go out" in solo_intent:
+        st.markdown("### 🍴 Restaurant Finder")
+        st.markdown(f"Searching near: **{global_address}** (Max Budget: **${global_budget}**, Max Travel: **{global_walk} mins**)")
         
-        choice_type = st.radio("What would you like to do next?", ["🍴 I need a place (Find a restaurant)", "🍳 I need the food (Fridge-to-Table Waste Optimizer)"], key="solo_radio")
-
-        fridge_items = ""
-        if "I need the food" in choice_type:
-            fridge_items = st.text_input("🧊 (Optional) What leftover ingredients do you have in your fridge? (e.g., eggs, cabbage, bacon):", key="solo_fridge")
-
-        if st.button("✨ Get Final Decision", use_container_width=True, key="btn_solo_final"):
-            with st.spinner(f"Analyzing details for '{selected_food}'..."):
-                try:
-                    client = genai.Client(api_key=api_key)
-                    
-                    if "I need a place" in choice_type:
-                        detail_prompt = (
-                            f"The user is at '{user_location}' with a max budget of ${max_budget} and max travel time of {max_walk} mins. "
-                            f"They selected '{selected_food}'. "
-                            f"Recommend 1 specific, real restaurant or cafe near '{user_location}' that satisfies these exact constraints. "
-                            f"Include the restaurant name, why it fits their friction matrix, and their signature dish."
+        solo_craving = st.text_input("💡 What kind of food or vibe are you craving? (e.g., warm soup, tacos, sushi):", key="solo_out_craving")
+        
+        if st.button("🔍 Find 5 Best Restaurant Options", use_container_width=True, key="btn_find_restaurants"):
+            if not api_key:
+                st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
+            else:
+                with st.spinner("Scanning local spots matching your friction matrix... 🍳"):
+                    try:
+                        client = genai.Client(api_key=api_key)
+                        prompt = (
+                            f"You are a local foodie guide. The user is at '{global_address}'. "
+                            f"Their constraints: max budget ${global_budget}, max travel time {global_walk} mins. "
+                            f"They are craving: '{solo_craving}'. "
+                            f"Please provide exactly 5 specific, real restaurants or cafes near '{global_address}' that fit these constraints. "
+                            f"For each restaurant, include: "
+                            f"1. Restaurant Name & Address/Area. "
+                            f"2. Their signature dish that matches the craving. "
+                            f"3. Why it fits their budget and travel limit. "
+                            f"Keep the tone warm, modern, and structured."
                         )
-                    else:
-                        detail_prompt = (
-                            f"The user selected '{selected_food}' and wants to cook at home. "
-                            f"Their available fridge items: '{fridge_items if fridge_items else 'None specified'}'. "
-                            f"Provide a quick 3-step home recipe, estimate how much money they save compared to eating out (under ${max_budget}), "
-                            f"and a quick sustainability/waste-reduction tip."
-                        )
-                    
-                    res = client.models.generate_content(model="gemini-3.6-flash", contents=detail_prompt)
-                    
-                    st.markdown("---")
-                    st.markdown("### 🎯 Your Custom Recommendation:")
-                    st.markdown(res.text)
-                    
-                    st.markdown("---")
-                    if "I need a place" in choice_type:
-                        st.link_button("Search Places on Google Maps", f"https://www.google.com/maps/search/{selected_food}+near+{user_location}", use_container_width=True)
-                    else:
-                        st.link_button("Search Recipe Online", f"https://www.google.com/search?q={selected_food}+recipe", use_container_width=True)
-                except Exception as e:
-                    st.error(f"Oops! Something went wrong: {e}")
+                        response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+                        st.markdown("---")
+                        st.markdown("### 🌟 Top 5 Restaurant Recommendations:")
+                        st.markdown(response.text)
+                        
+                        st.markdown("---")
+                        st.link_button("Search Area on Google Maps", f"https://www.google.com/maps/search/{solo_craving}+restaurant+near+{global_address}", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+    # ------------------------------------------
+    # 模式 B：單人自煮 (Cook at Home - Two Sub-Modes)
+    # ------------------------------------------
+    else:
+        st.markdown("### 🍳 Cook at Home Optimizer")
+        cook_mode = st.radio("Choose your cooking approach:", [
+            "🧊 Mode 1: Based on ingredients I already have in my fridge", 
+            "🎯 Mode 2: Pick a specific dish I want to make + Get Shopping List & Nearby Markets"
+        ], key="cook_mode_choice")
+        
+        st.markdown("---")
+
+        # --- 自煮 Sub-Mode 1: 根據冰箱現有食材產出食譜 ---
+        if "Mode 1" in cook_mode:
+            fridge_contents = st.text_input("🧊 What ingredients do you currently have in your fridge? (e.g., eggs, cabbage, bacon, rice):", key="mode1_fridge")
+            desired_style = st.text_input("💡 Any specific style or flavor you want to make out of them? (Optional, e.g., Asian style, quick soup):", key="mode1_style")
+            
+            if st.button("✨ Generate Recipe from My Fridge", use_container_width=True, key="btn_mode1"):
+                if not api_key:
+                    st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
+                else:
+                    with st.spinner("Crafting a recipe from your fridge items... 🍳"):
+                        try:
+                            client = genai.Client(api_key=api_key)
+                            prompt = (
+                                f"The user is at '{global_address}' and wants to cook at home using what's in their fridge. "
+                                f"Fridge ingredients available: '{fridge_contents}'. "
+                                f"Desired style/craving: '{desired_style if desired_style else 'Any delicious recipe'}'. "
+                                f"Please provide: "
+                                f"1. A delicious, quick recipe utilizing these ingredients. "
+                                f"2. Useful cooking tips & culinary tricks. "
+                                f"3. Estimated money saved compared to eating out (keeping budget under ${global_budget}) and a sustainability/waste-reduction note."
+                            )
+                            response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+                            st.markdown("---")
+                            st.markdown("### 🎯 Your Fridge-to-Table Recipe:")
+                            st.markdown(response.text)
+                            
+                            st.markdown("---")
+                            st.link_button("Search Recipe Online", f"https://www.google.com/search?q={desired_style}+recipe", use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+
+        # --- 自煮 Sub-Mode 2: 根據想吃的食物產出食譜、購物清單、減去冰箱現有食材、以及附近超市 ---
+        else:
+            target_dish = st.text_input("💡 What specific dish do you want to make? (e.g., Pad Thai, Creamy Carbonara, Beef Stew):", key="mode2_dish")
+            my_fridge_inventory = st.text_input("🧊 (Optional) What ingredients do you ALREADY have at home so we can exclude them from the shopping list?:", key="mode2_inventory")
+            
+            if st.button("🛒 Generate Recipe, Shopping List & Nearby Markets", use_container_width=True, key="btn_mode2"):
+                if not api_key:
+                    st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
+                else:
+                    with st.spinner("Generating recipe, customized shopping list, and local markets... 🍳"):
+                        try:
+                            client = genai.Client(api_key=api_key)
+                            prompt = (
+                                f"The user is at '{global_address}' and wants to cook '{target_dish}' at home. "
+                                f"They ALREADY have these ingredients at home: '{my_fridge_inventory if my_fridge_inventory else 'None'}'. "
+                                f"Please provide: "
+                                f"1. A clear, easy-to-follow recipe for '{target_dish}'. "
+                                f"2. A customized 'Shopping List' containing ONLY the missing ingredients they still need to buy. "
+                                f"3. 2-3 specific, real grocery stores or supermarkets near '{global_address}' where they can buy these ingredients. "
+                                f"4. Useful cooking tips and estimated money saved compared to dining out (under ${global_budget})."
+                            )
+                            response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+                            st.markdown("---")
+                            st.markdown("### 🎯 Recipe, Shopping List & Local Markets:")
+                            st.markdown(response.text)
+                            
+                            st.markdown("---")
+                            col_m1, col_m2 = st.columns(2)
+                            with col_m1:
+                                st.link_button("Search Grocery Stores on Maps", f"https://www.google.com/maps/search/grocery+store+near+{global_address}", use_container_width=True)
+                            with col_m2:
+                                st.link_button("Search Recipe Online", f"https://www.google.com/search?q={target_dish}+recipe", use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
 # ==========================================
 # Tab 2: 多人匿名模式 (Secret Group Consensus)
 # ==========================================
 with tab_group:
     st.subheader("👥 Secret Group Consensus (Anonymous Mode)")
+    st.markdown(f"📍 Current Group Location Context: **{global_address}**")
     st.markdown("🔒 *Your individual inputs are 100% private. The AI will compute a safe mutual intersection without revealing what anyone specifically wanted or wanted to spend.*")
     
     col_g1, col_g2 = st.columns(2)
     with col_g1:
         member_name = st.text_input("Your Nickname (for session tracking only):", value="Friend 1", key="grp_name")
         my_secret_craving = st.text_input("What do you secretly want to eat?", key="grp_craving")
-        my_max_spending = st.slider("Your Personal Budget Limit ($):", 5, 50, max_budget, key="grp_budget")
+        my_max_spending = st.slider("Your Personal Budget Limit ($):", 5, 50, global_budget, key="grp_budget")
     with col_g2:
-        my_dietary_restriction = st.selectbox("Dietary Note / Restrictions:", ["None", "Vegetarian", "Vegan", "Gluten-Free", "Halal", "Dairy-Free"], key="grp_diet")
-        my_travel_limit = st.slider("Your Max Travel Limit (mins):", 5, 30, max_walk, key="grp_travel")
+        # 支援下拉選單加上自由輸入欄位
+        diet_option = st.selectbox("Dietary Note / Restrictions:", ["None", "Vegetarian", "Vegan", "Gluten-Free", "Halal", "Dairy-Free", "Custom (Type below)"], key="grp_diet_select")
+        if "Custom" in diet_option:
+            my_dietary_restriction = st.text_input("Type your custom dietary note (e.g., nut allergy, no seafood):", key="grp_custom_diet")
+        else:
+            my_dietary_restriction = diet_option
+            
+        my_travel_limit = st.slider("Your Max Travel Limit (mins):", 5, 30, global_walk, key="grp_travel")
 
     if st.button("📥 Submit My Secret Preference", use_container_width=True, key="btn_grp_submit"):
         existing = [m for m in st.session_state.group_members if m["name"] == member_name]
@@ -161,14 +208,14 @@ with tab_group:
                         group_data_str = str(st.session_state.group_members)
                         consensus_prompt = (
                             f"You are a neutral, highly intelligent group dining mediator. "
-                            f"Location: '{user_location}'. "
+                            f"Location: '{global_address}'. "
                             f"Here are the anonymous/secret preferences of group members: {group_data_str}. "
                             f"Please calculate the strict mutual intersection (take the lowest budget constraint among them to ensure nobody overspends, "
-                            f"respect all dietary restrictions, and find a common craving ground). "
+                            f"respect all dietary restrictions including custom notes, and find a common craving ground). "
                             f"Do NOT expose individual choices or secrets. "
                             f"Provide: "
                             f"1. The computed 'Safe Zone' profile (mutual budget limit and shared style). "
-                            f"2. ONE specific, real restaurant near '{user_location}' that satisfies everyone safely. "
+                            f"2. ONE specific, real restaurant near '{global_address}' that satisfies everyone safely. "
                             f"3. A polite, warm message to seal the group consensus."
                         )
                         
@@ -177,6 +224,9 @@ with tab_group:
                         st.markdown("---")
                         st.markdown("### 🎯 Mutual Group Recommendation (No Social Friction):")
                         st.markdown(res.text)
+                        
+                        st.markdown("---")
+                        st.link_button("Search Consensus Spot on Google Maps", f"https://www.google.com/maps/search/restaurant+near+{global_address}", use_container_width=True)
                     except Exception as e:
                         st.error(f"Group consensus error: {e}")
 
