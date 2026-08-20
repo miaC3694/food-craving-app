@@ -1,7 +1,7 @@
 import streamlit as st
 from google import genai
 
-st.set_page_config(page_title="Smart Dining & Decision Engine", page_icon="🍽️", layout="wide")
+st.set_page_config(page_title="What do you crave for today?", page_icon="🍽️", layout="wide")
 
 st.title("🍽️ Smart Dining & Decision Engine")
 st.markdown("---")
