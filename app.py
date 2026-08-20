@@ -1,9 +1,10 @@
 import streamlit as st
 from google import genai
+import urllib.parse
 
 st.set_page_config(page_title="Smart Dining & Decision Engine", page_icon="🍽️", layout="wide")
 
-# 醒目的標題與開頭
+# 修正文法：What do you crave for today?
 st.title("What do you crave for today? 🍽️")
 st.markdown("Your smart local foodie guide and decision engine.")
 st.write("---")
@@ -41,13 +42,12 @@ with tab_solo:
     st.subheader("👤 Solo Food & Decision Hub")
     st.markdown("Choose whether you want to go out to a restaurant or cook at home with tailored AI guidance.")
 
-    # 選擇要「出去吃」還是「在家煮」
     solo_intent = st.radio("What's your plan?", ["🍴 I want to go out (Find Restaurants)", "🍳 I want to cook at home (Recipe & Shopping Optimizer)"], key="solo_intent_choice")
 
     st.markdown("---")
 
     # ------------------------------------------
-    # 模式 A：單人出去吃 (Find 5 Restaurants)
+    # 模式 A：單人出去吃 (Find 3+ Restaurants with Direct Maps Links)
     # ------------------------------------------
     if "go out" in solo_intent:
         st.markdown("### 🍴 Restaurant Finder")
@@ -55,7 +55,7 @@ with tab_solo:
         
         solo_craving = st.text_input("💡 What kind of food or vibe are you craving? (e.g., warm soup, tacos, sushi):", key="solo_out_craving")
         
-        if st.button("🔍 Find 5 Best Restaurant Options", use_container_width=True, key="btn_find_restaurants"):
+        if st.button("🔍 Find Top Restaurant Options", use_container_width=True, key="btn_find_restaurants"):
             if not api_key:
                 st.warning("⚠️ Please configure your GEMINI_API_KEY in Streamlit Secrets.")
             else:
@@ -66,22 +66,25 @@ with tab_solo:
                             f"You are a local foodie guide. The user is at '{global_address}'. "
                             f"Their constraints: max budget ${global_budget}, max travel time {global_walk} mins. "
                             f"They are craving: '{solo_craving}'. "
-                            f"Please provide exactly 5 specific, real restaurants or cafes near '{global_address}' that fit these constraints. "
-                            f"For each restaurant, include: "
-                            f"1. Restaurant Name & Address/Area. "
-                            f"2. Their signature dish that matches the craving. "
-                            f"3. Why it fits their budget and travel limit. "
+                            f"Please provide AT LEAST 3 to 5 specific, real restaurants or cafes near '{global_address}' that fit these constraints. "
+                            f"For each restaurant, strictly include: "
+                            f"1. Exact Restaurant Name. "
+                            f"2. Address or Area. "
+                            f"3. Their signature dish that matches the craving. "
+                            f"4. Why it fits their budget and travel limit. "
                             f"Keep the tone warm, modern, and structured."
                         )
                         response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
                         st.markdown("---")
-                        st.markdown("### 🌟 Top 5 Restaurant Recommendations:")
+                        st.markdown("### 🌟 Recommended Restaurants for You:")
                         st.markdown(response.text)
                         
                         st.markdown("---")
-                        st.link_button("Search Area on Google Maps", f"https://www.google.com/maps/search/{solo_craving}+restaurant+near+{global_address}", use_container_width=True)
+                        st.write("### 🗺️ Quick Map Navigation:")
+                        encoded_query = urllib.parse.quote(f"{solo_craving} restaurant near {global_address}")
+                        st.link_button("📍 Open All Options on Google Maps", f"https://www.google.com/maps/search/{encoded_query}", use_container_width=True)
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"⚠️ AI service is busy right now (503 / High Demand). Please wait a few seconds and try again! Details: {e}")
 
     # ------------------------------------------
     # 模式 B：單人自煮 (Cook at Home - Two Sub-Modes)
@@ -95,7 +98,6 @@ with tab_solo:
         
         st.markdown("---")
 
-        # --- 自煮 Sub-Mode 1: 根據冰箱現有食材產出食譜 ---
         if "Mode 1" in cook_mode:
             fridge_contents = st.text_input("🧊 What ingredients do you currently have in your fridge? (e.g., eggs, cabbage, bacon, rice):", key="mode1_fridge")
             desired_style = st.text_input("💡 Any specific style or flavor you want to make out of them? (Optional, e.g., Asian style, quick soup):", key="mode1_style")
@@ -124,9 +126,8 @@ with tab_solo:
                             st.markdown("---")
                             st.link_button("Search Recipe Online", f"https://www.google.com/search?q={desired_style}+recipe", use_container_width=True)
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"⚠️ AI service is busy right now. Please try again in a moment! Details: {e}")
 
-        # --- 自煮 Sub-Mode 2: 根據想吃的食物產出食譜、購物清單、減去冰箱現有食材、以及附近超市 ---
         else:
             target_dish = st.text_input("💡 What specific dish do you want to make? (e.g., Pad Thai, Creamy Carbonara, Beef Stew):", key="mode2_dish")
             my_fridge_inventory = st.text_input("🧊 (Optional) What ingredients do you ALREADY have at home so we can exclude them from the shopping list?:", key="mode2_inventory")
@@ -155,11 +156,12 @@ with tab_solo:
                             st.markdown("---")
                             col_m1, col_m2 = st.columns(2)
                             with col_m1:
-                                st.link_button("Search Grocery Stores on Maps", f"https://www.google.com/maps/search/grocery+store+near+{global_address}", use_container_width=True)
+                                encoded_grocery = urllib.parse.quote(f"grocery store near {global_address}")
+                                st.link_button("Search Grocery Stores on Maps", f"https://www.google.com/maps/search/{encoded_grocery}", use_container_width=True)
                             with col_m2:
                                 st.link_button("Search Recipe Online", f"https://www.google.com/search?q={target_dish}+recipe", use_container_width=True)
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"⚠️ AI service is busy right now. Please try again in a moment! Details: {e}")
 
 # ==========================================
 # Tab 2: 多人匿名模式 (Secret Group Consensus)
@@ -229,9 +231,10 @@ with tab_group:
                         st.markdown(res.text)
                         
                         st.markdown("---")
-                        st.link_button("Search Consensus Spot on Google Maps", f"https://www.google.com/maps/search/restaurant+near+{global_address}", use_container_width=True)
+                        encoded_consensus = urllib.parse.quote(f"restaurant near {global_address}")
+                        st.link_button("Search Consensus Spot on Google Maps", f"https://www.google.com/maps/search/{encoded_consensus}", use_container_width=True)
                     except Exception as e:
-                        st.error(f"Group consensus error: {e}")
+                        st.error(f"⚠️ AI service is busy right now (503 / High Demand). Please wait a few seconds and try clicking 'Compute Mutual Safe Zone' again! Details: {e}")
 
 st.markdown("---")
 st.caption("Powered by Gemini 3.6 Flash | Built for smart, friction-free dining decisions.")
