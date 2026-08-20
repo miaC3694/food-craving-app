@@ -3,7 +3,7 @@ from google import genai
 
 st.set_page_config(page_title="Smart Dining & Decision Engine", page_icon="🍽️", layout="wide")
 
-st.title("🍽️ Smart Dining & Decision Engine")
+st.title("🍽️ What do you crave for today?")
 st.markdown("---")
 
 api_key = st.secrets.get("GEMINI_API_KEY", "")
