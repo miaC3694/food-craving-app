@@ -47,13 +47,18 @@ if target:
                 
                 # 設計給 AI 的 Prompt，限制在 UW-Madison 校園周邊
                 prompt = f"""
-                You are a friendly local foodie guide for an undergraduate student at UW-Madison. 
-                The student is craving or looking for: '{target}'.
-                Please recommend:
-                1. One specific, real restaurant or cafe near the UW-Madison campus or State Street area that fits this.
-                2. A short, friendly note on why it's great.
-                3. A very brief, easy DIY home recipe or alternative if they don't want to go out.
-                Keep the tone warm, modern, and concise.
+                # 更新後的 AI Prompt，更強調精細化的推薦
+                prompt = f"""
+                You are a local foodie guide for an undergraduate student at UW-Madison.
+                The student is looking for: '{target}'.
+                
+                Please provide:
+                1. One specific restaurant or cafe near the UW-Madison campus (State Street or nearby).
+                2. One specific dish name that perfectly matches their request (e.g., if they ask for 'warm but not too spicy', suggest something like Chicken Pho or Miso Ramen).
+                3. A short, friendly note explaining why this specific dish fits their current mood.
+                4. A simple 'Cook at Home' version or quick tip if they prefer to stay in.
+                
+                Keep the tone warm, modern, and empathetic to a student's budget and schedule.
                 """
                 
                 response = client.models.generate_content(
